@@ -171,12 +171,17 @@ ${lines.join('\n')}
 
     const apiResp = await callSiliconFlow(apiKey, prompt);
 
-    if (apiResp.error) {
-      throw new Error(apiResp.error.message || '硅基流动 API 调用失败');
-    }
+    // 将完整响应记录到日志，便于排查
+    console.log('SiliconFlow响应:', JSON.stringify(apiResp).substring(0, 500));
 
+    if (apiResp.error) {
+      throw new Error(`API错误: ${apiResp.error.message || JSON.stringify(apiResp.error)}`);
+    }
+    if (apiResp.message && !apiResp.choices) {
+      throw new Error(`API返回: ${apiResp.message}`);
+    }
     if (!apiResp.choices || !apiResp.choices[0]) {
-      throw new Error('API 返回数据异常，请重试');
+      throw new Error(`响应结构异常: ${JSON.stringify(apiResp).substring(0, 200)}`);
     }
 
     let content = apiResp.choices[0].message.content.trim();
