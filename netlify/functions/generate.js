@@ -1,10 +1,55 @@
-const OpenAI = require('openai');
+/**
+ * Netlify Function: generate
+ * 使用 Node.js 内置 https 模块直接调用 DeepSeek API，无外部依赖
+ */
+const https = require('https');
 
 const CORS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type'
 };
+
+/** 调用 DeepSeek API */
+function callDeepSeek(apiKey, prompt) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      model: 'deepseek-chat',
+      max_tokens: 6000,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const req = https.request({
+      hostname: 'api.deepseek.com',
+      path: '/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Length': Buffer.byteLength(body)
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch {
+          reject(new Error('API响应解析失败: ' + data.substring(0, 300)));
+        }
+      });
+    });
+
+    req.setTimeout(24000, () => {
+      req.destroy();
+      reject(new Error('请求超时，请稍后重试'));
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
@@ -14,14 +59,10 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  if (!process.env.DEEPSEEK_API_KEY) {
-    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: '未配置 DEEPSEEK_API_KEY 环境变量' }) };
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: '未配置 DEEPSEEK_API_KEY 环境变量，请在 Netlify 控制台添加' }) };
   }
-
-  const client = new OpenAI({
-    apiKey: process.env.DEEPSEEK_API_KEY,
-    baseURL: 'https://api.deepseek.com'
-  });
 
   try {
     const { destination, budget, days, preferences } = JSON.parse(event.body || '{}');
@@ -34,11 +75,7 @@ exports.handler = async (event) => {
     ].filter(Boolean);
 
     if (filled.length < 2) {
-      return {
-        statusCode: 400,
-        headers: CORS,
-        body: JSON.stringify({ error: '请至少填写两个条件（目的地、旅行天数、预算、旅游偏好中任意两个）' })
-      };
+      return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: '请至少填写两个条件（目的地、旅行天数、预算、旅游偏好中任意两个）' }) };
     }
 
     const lines = [];
@@ -58,7 +95,6 @@ ${lines.join('\n')}
 3. 每日行程合理安排，考虑景点距离和游览时长
 4. 预算分配符合目的地实际消费水平
 5. 如未指定目的地，根据其他条件智能推荐最合适目的地
-6. 行程内容丰富有趣，兼顾深度体验和休闲时光
 
 请严格以JSON格式返回（不要包含任何代码块标记或其他文字）：
 
@@ -68,7 +104,7 @@ ${lines.join('\n')}
     "destination": "目的地名称",
     "days": 天数数字,
     "budget": "总预算描述",
-    "summary": "目的地综合介绍（150-200字，涵盖地理位置、文化特色、最适合的旅游体验）",
+    "summary": "目的地综合介绍（150-200字）",
     "bestSeason": "最佳旅游季节及推荐理由",
     "highlights": ["核心亮点1", "核心亮点2", "核心亮点3", "核心亮点4", "核心亮点5"]
   },
@@ -140,14 +176,13 @@ ${lines.join('\n')}
   "videoSearchKeyword": "B站视频搜索关键词"
 }`;
 
-    const response = await client.chat.completions.create({
-      model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-      max_tokens: 6000,
-      response_format: { type: 'json_object' },
-      messages: [{ role: 'user', content: prompt }]
-    });
+    const apiResp = await callDeepSeek(apiKey, prompt);
 
-    const itinerary = JSON.parse(response.choices[0].message.content);
+    if (apiResp.error) {
+      throw new Error(apiResp.error.message || 'DeepSeek API 调用失败');
+    }
+
+    const itinerary = JSON.parse(apiResp.choices[0].message.content);
 
     return {
       statusCode: 200,
