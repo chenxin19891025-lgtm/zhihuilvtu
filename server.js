@@ -209,9 +209,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', model: process.env.DEEPSEEK_MODEL || 'deepseek-chat' });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`\n🗺️  智绘旅途 Travel Planner`);
-  console.log(`📍 运行地址: http://localhost:${PORT}`);
-  console.log(`🤖 AI模型: ${process.env.DEEPSEEK_MODEL || 'deepseek-chat'} (DeepSeek)\n`);
-});
+// 本地开发时直接启动服务，Vercel 部署时使用 module.exports
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`\n🗺️  智绘旅途 Travel Planner`);
+    console.log(`📍 运行地址: http://localhost:${PORT}`);
+    console.log(`🤖 AI模型: ${process.env.DEEPSEEK_MODEL || 'deepseek-chat'} (DeepSeek)\n`);
+  });
+}
+
+module.exports = app;
