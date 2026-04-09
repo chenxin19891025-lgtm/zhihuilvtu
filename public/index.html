@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智绘旅途 · AI个性化旅游攻略</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ===== 输入页 ===== -->
+  <section id="input-section" class="page active">
+    <div class="hero-bg">
+      <div class="hero-overlay"></div>
+      <div class="floating-icons">
+        <span class="fi" style="--d:0s;--x:10%;--y:20%">✈️</span>
+        <span class="fi" style="--d:2s;--x:80%;--y:15%">🗺️</span>
+        <span class="fi" style="--d:4s;--x:20%;--y:75%">🏔️</span>
+        <span class="fi" style="--d:1s;--x:70%;--y:70%">🌊</span>
+        <span class="fi" style="--d:3s;--x:50%;--y:40%">🍜</span>
+        <span class="fi" style="--d:5s;--x:90%;--y:50%">🏛️</span>
+      </div>
+      <div class="hero-content">
+        <div class="brand">
+          <div class="brand-icon">🗺️</div>
+          <div class="brand-text">
+            <h1>智绘旅途</h1>
+            <p>AI · 个性化旅游攻略生成器</p>
+          </div>
+        </div>
+        <p class="hero-tagline">告诉我你的旅行偏好<br>AI为你定制专属旅游攻略</p>
+
+        <div class="form-card">
+          <div class="form-card-header">
+            <h2>开始规划您的旅程</h2>
+            <p class="form-hint">至少填写以下两个条件即可生成攻略</p>
+          </div>
+
+          <form id="travel-form" novalidate>
+            <!-- 目的地 -->
+            <div class="field-group" id="fg-destination">
+              <div class="field-icon">📍</div>
+              <div class="field-body">
+                <label for="destination">目的地</label>
+                <input type="text" id="destination" placeholder="例如：丽江古镇、东京、巴厘岛、西藏..." autocomplete="off">
+                <div class="field-tag">可选</div>
+              </div>
+            </div>
+
+            <!-- 天数 + 预算 并排 -->
+            <div class="field-row">
+              <div class="field-group" id="fg-days">
+                <div class="field-icon">📅</div>
+                <div class="field-body">
+                  <label for="days">旅行天数</label>
+                  <input type="number" id="days" placeholder="几天？（1-30）" min="1" max="30">
+                </div>
+              </div>
+              <div class="field-group" id="fg-budget">
+                <div class="field-icon">💰</div>
+                <div class="field-body">
+                  <label for="budget">人均预算（元）</label>
+                  <input type="number" id="budget" placeholder="例如：5000" min="0">
+                </div>
+              </div>
+            </div>
+
+            <!-- 旅游偏好 -->
+            <div class="field-group pref-group" id="fg-preferences">
+              <div class="field-icon">❤️</div>
+              <div class="field-body">
+                <label>旅游偏好 <small>（可多选）</small></label>
+                <div class="pref-tags">
+                  <label class="pref-tag"><input type="checkbox" name="pref" value="自然风光"><span>🏔️ 自然风光</span></label>
+                  <label class="pref-tag"><input type="checkbox" name="pref" value="人文历史"><span>🏛️ 人文历史</span></label>
+                  <label class="pref-tag"><input type="checkbox" name="pref" value="美食探索"><span>🍜 美食探索</span></label>
+                  <label class="pref-tag"><input type="checkbox" name="pref" value="休闲度假"><span>🏖️ 休闲度假</span></label>
+                  <label class="pref-tag"><input type="checkbox" name="pref" value="购物娱乐"><span>🛍️ 购物娱乐</span></label>
+                  <label class="pref-tag"><input type="checkbox" name="pref" value="户外运动"><span>🧗 户外运动</span></label>
+                  <label class="pref-tag"><input type="checkbox" name="pref" value="亲子家庭"><span>👨‍👩‍👧 亲子家庭</span></label>
+                  <label class="pref-tag"><input type="checkbox" name="pref" value="蜜月浪漫"><span>💑 蜜月浪漫</span></label>
+                  <label class="pref-tag"><input type="checkbox" name="pref" value="摄影打卡"><span>📷 摄影打卡</span></label>
+                  <label class="pref-tag"><input type="checkbox" name="pref" value="背包穷游"><span>🎒 背包穷游</span></label>
+                </div>
+              </div>
+            </div>
+
+            <div id="validate-msg" class="validate-msg" style="display:none"></div>
+
+            <button type="submit" class="btn-generate" id="btn-generate">
+              <span class="btn-sparkle">✨</span>
+              <span>生成我的专属旅游攻略</span>
+              <span class="btn-arrow">→</span>
+            </button>
+          </form>
+        </div>
+
+        <div class="feature-pills">
+          <div class="pill">🗺️ 可视化路线图</div>
+          <div class="pill">🍽️ 大众点评直达</div>
+          <div class="pill">🏨 携程一键预订</div>
+          <div class="pill">💰 预算智能分析</div>
+          <div class="pill">🎬 旅游视频推荐</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 加载页 ===== -->
+  <section id="loading-section" class="page">
+    <div class="loading-wrap">
+      <div class="loading-plane">
+        <div class="plane-track">
+          <div class="plane-dot">✈️</div>
+          <div class="plane-trail"></div>
+        </div>
+      </div>
+      <h2 class="loading-title">AI正在为您定制专属攻略</h2>
+      <p class="loading-sub" id="loading-dest"></p>
+      <div class="loading-steps">
+        <div class="step-item" id="s1"><span class="step-dot"></span><span class="step-text">分析旅行需求...</span></div>
+        <div class="step-item" id="s2"><span class="step-dot"></span><span class="step-text">规划最优路线...</span></div>
+        <div class="step-item" id="s3"><span class="step-dot"></span><span class="step-text">筛选精选餐饮住宿...</span></div>
+        <div class="step-item" id="s4"><span class="step-dot"></span><span class="step-text">整合完整攻略...</span></div>
+      </div>
+      <p class="loading-note">通常需要 15-30 秒，请耐心等候</p>
+    </div>
+  </section>
+
+  <!-- ===== 结果页 ===== -->
+  <section id="result-section" class="page">
+    <!-- 顶栏 -->
+    <nav class="result-nav">
+      <button class="nav-back" onclick="goBack()">← 重新规划</button>
+      <span class="nav-title" id="nav-title"></span>
+      <button class="nav-print" onclick="window.print()">🖨️ 打印</button>
+    </nav>
+
+    <div class="result-body">
+
+      <!-- Hero Banner -->
+      <div class="r-hero" id="r-hero">
+        <div class="r-hero-overlay"></div>
+        <div class="r-hero-content">
+          <h1 id="r-title"></h1>
+          <div class="r-stats">
+            <div class="r-stat"><span class="rs-icon">📍</span><span class="rs-val" id="rs-dest"></span><span class="rs-label">目的地</span></div>
+            <div class="r-stat"><span class="rs-icon">📅</span><span class="rs-val" id="rs-days"></span><span class="rs-label">天</span></div>
+            <div class="r-stat"><span class="rs-icon">💰</span><span class="rs-val" id="rs-budget"></span><span class="rs-label">预算</span></div>
+            <div class="r-stat"><span class="rs-icon">🌤️</span><span class="rs-val" id="rs-season"></span><span class="rs-label">最佳季节</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 概览 -->
+      <div class="r-section">
+        <div class="r-section-inner">
+          <h2 class="sec-title">✨ 目的地概览</h2>
+          <p id="r-summary" class="r-summary"></p>
+          <div id="r-highlights" class="r-highlights"></div>
+        </div>
+      </div>
+
+      <!-- 地图 -->
+      <div class="r-section map-section">
+        <div class="r-section-inner">
+          <h2 class="sec-title">🗺️ 行程路线图</h2>
+          <div id="travel-map"></div>
+          <div class="map-legend" id="map-legend"></div>
+        </div>
+      </div>
+
+      <!-- 日程 -->
+      <div class="r-section">
+        <div class="r-section-inner">
+          <h2 class="sec-title">📋 每日详细行程</h2>
+          <div class="day-tabs" id="day-tabs"></div>
+          <div class="day-panels" id="day-panels"></div>
+        </div>
+      </div>
+
+      <!-- 餐饮 -->
+      <div class="r-section resto-section">
+        <div class="r-section-inner">
+          <h2 class="sec-title">🍽️ 精选餐饮推荐</h2>
+          <p class="sec-sub">点击餐厅卡片直达大众点评查看详情和评价</p>
+          <div class="cards-grid" id="restaurants-grid"></div>
+        </div>
+      </div>
+
+      <!-- 住宿 -->
+      <div class="r-section hotel-section">
+        <div class="r-section-inner">
+          <h2 class="sec-title">🏨 住宿推荐</h2>
+          <p class="sec-sub">点击酒店卡片直达携程进行查询预订</p>
+          <div class="cards-grid" id="hotels-grid"></div>
+        </div>
+      </div>
+
+      <!-- 预算 -->
+      <div class="r-section">
+        <div class="r-section-inner">
+          <h2 class="sec-title">💰 预算明细分析</h2>
+          <div class="budget-wrap">
+            <div class="budget-chart-box">
+              <canvas id="budget-chart"></canvas>
+            </div>
+            <div class="budget-list" id="budget-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 交通 -->
+      <div class="r-section">
+        <div class="r-section-inner">
+          <h2 class="sec-title">🚄 交通指南</h2>
+          <div id="transport-content"></div>
+        </div>
+      </div>
+
+      <!-- 购物 -->
+      <div class="r-section shop-section">
+        <div class="r-section-inner">
+          <h2 class="sec-title">🛍️ 购物推荐</h2>
+          <div class="shop-grid" id="shop-grid"></div>
+        </div>
+      </div>
+
+      <!-- 视频 -->
+      <div class="r-section video-section">
+        <div class="r-section-inner">
+          <h2 class="sec-title">🎬 旅游视频参考</h2>
+          <div class="video-cards" id="video-cards"></div>
+        </div>
+      </div>
+
+      <!-- 贴士 -->
+      <div class="r-section tips-section">
+        <div class="r-section-inner">
+          <h2 class="sec-title">💡 旅行小贴士</h2>
+          <div class="tips-grid" id="tips-grid"></div>
+        </div>
+      </div>
+
+      <!-- 底部 -->
+      <div class="r-footer">
+        <p>🗺️ 由 <strong>智绘旅途</strong> AI生成 · 建议出行前核实最新信息</p>
+        <button class="btn-replan" onclick="goBack()">重新规划</button>
+      </div>
+
+    </div>
+  </section>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
