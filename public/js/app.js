@@ -96,12 +96,7 @@ document.getElementById('travel-form').addEventListener('submit', async function
   startLoadingAnimation();
 
   try {
-    // 本地开发用 Express，Netlify 部署直接调用函数
-    const apiUrl = window.location.hostname === 'localhost'
-      ? '/api/generate'
-      : '/.netlify/functions/generate';
-
-    const response = await fetch(apiUrl, {
+    const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ destination, days, budget, preferences })
