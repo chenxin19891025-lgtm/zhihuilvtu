@@ -13,7 +13,7 @@ const CORS = {
 function callSiliconFlow(apiKey, prompt) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      model: process.env.AI_MODEL || 'Qwen/Qwen2.5-7B-Instruct',
+      model: process.env.AI_MODEL || 'deepseek-ai/DeepSeek-V3',
       max_tokens: 3500,
       temperature: 0.7,
       messages: [
