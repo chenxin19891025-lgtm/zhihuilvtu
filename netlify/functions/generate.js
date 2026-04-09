@@ -1,6 +1,6 @@
 /**
  * Netlify Function: generate
- * 使用 Node.js 内置 https 模块直接调用 DeepSeek API，无外部依赖
+ * 使用硅基流动 (SiliconFlow) API，内置 https 模块，零外部依赖
  */
 const https = require('https');
 
@@ -10,18 +10,26 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type'
 };
 
-/** 调用 DeepSeek API */
-function callDeepSeek(apiKey, prompt) {
+function callSiliconFlow(apiKey, prompt) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      model: 'deepseek-chat',
-      max_tokens: 6000,
-      response_format: { type: 'json_object' },
-      messages: [{ role: 'user', content: prompt }]
+      model: process.env.AI_MODEL || 'Qwen/Qwen2.5-7B-Instruct',
+      max_tokens: 3500,
+      temperature: 0.7,
+      messages: [
+        {
+          role: 'system',
+          content: '你是一位专业的旅游规划师。请严格按照用户要求的JSON格式输出，不要添加任何代码块标记或额外文字，直接输出纯JSON。'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
     });
 
     const req = https.request({
-      hostname: 'api.deepseek.com',
+      hostname: 'api.siliconflow.cn',
       path: '/v1/chat/completions',
       method: 'POST',
       headers: {
@@ -41,9 +49,9 @@ function callDeepSeek(apiKey, prompt) {
       });
     });
 
-    req.setTimeout(24000, () => {
+    req.setTimeout(9000, () => {
       req.destroy();
-      reject(new Error('请求超时，请稍后重试'));
+      reject(new Error('AI响应超时，请重试'));
     });
     req.on('error', reject);
     req.write(body);
@@ -59,9 +67,13 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const apiKey = process.env.SILICON_API_KEY;
   if (!apiKey) {
-    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: '未配置 DEEPSEEK_API_KEY 环境变量，请在 Netlify 控制台添加' }) };
+    return {
+      statusCode: 500,
+      headers: CORS,
+      body: JSON.stringify({ error: '未配置 SILICON_API_KEY，请在 Netlify 控制台的 Environment Variables 中添加' })
+    };
   }
 
   try {
@@ -75,7 +87,11 @@ exports.handler = async (event) => {
     ].filter(Boolean);
 
     if (filled.length < 2) {
-      return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: '请至少填写两个条件（目的地、旅行天数、预算、旅游偏好中任意两个）' }) };
+      return {
+        statusCode: 400,
+        headers: CORS,
+        body: JSON.stringify({ error: '请至少填写两个条件（目的地、旅行天数、预算、旅游偏好中任意两个）' })
+      };
     }
 
     const lines = [];
@@ -84,105 +100,101 @@ exports.handler = async (event) => {
     if (budget > 0) lines.push(`总预算：${budget}元人民币（按人均计算）`);
     if (preferences?.length > 0) lines.push(`旅游偏好：${preferences.join('、')}`);
 
-    const prompt = `你是一位经验丰富的专业旅游规划师，拥有丰富的全球旅行知识和实地经验。请根据以下旅行条件，生成一份详尽、实用的个性化旅游攻略。
-
-旅行条件：
+    const prompt = `根据以下旅行条件，生成个性化旅游攻略：
 ${lines.join('\n')}
 
-核心要求：
-1. 所有景点的GPS坐标必须精确真实（精确至小数点后4位）
-2. 推荐的餐厅和酒店应为目的地真实存在的知名场所
-3. 每日行程合理安排，考虑景点距离和游览时长
-4. 预算分配符合目的地实际消费水平
-5. 如未指定目的地，根据其他条件智能推荐最合适目的地
+要求：
+1. 景点GPS坐标必须真实准确
+2. 推荐真实存在的餐厅和酒店
+3. 预算分配合理，符合实际消费水平
+4. 如未指定目的地，根据条件推荐最合适目的地
 
-请严格以JSON格式返回（不要包含任何代码块标记或其他文字）：
-
+直接返回如下JSON（禁止添加任何代码块标记）：
 {
   "overview": {
-    "title": "旅游攻略标题（富有吸引力）",
-    "destination": "目的地名称",
+    "title": "攻略标题",
+    "destination": "目的地",
     "days": 天数数字,
-    "budget": "总预算描述",
-    "summary": "目的地综合介绍（150-200字）",
-    "bestSeason": "最佳旅游季节及推荐理由",
-    "highlights": ["核心亮点1", "核心亮点2", "核心亮点3", "核心亮点4", "核心亮点5"]
+    "budget": "预算描述",
+    "summary": "目的地介绍（100字）",
+    "bestSeason": "最佳旅游季节",
+    "highlights": ["亮点1","亮点2","亮点3","亮点4"]
   },
   "locations": [
-    {
-      "id": 1,
-      "name": "景点或地点名称",
-      "lat": 纬度数字,
-      "lng": 经度数字,
-      "day": 属于第几天数字,
-      "order": 当天参观顺序数字,
-      "type": "类型（古迹/自然景观/餐厅/购物/文化体验）",
-      "description": "40字简介"
-    }
+    {"id":1,"name":"景点名","lat":纬度,"lng":经度,"day":第几天,"order":顺序,"type":"类型","description":"简介"}
   ],
   "itinerary": [
     {
       "day": 1,
       "theme": "今日主题",
-      "imageKeyword": "代表今日景色的英文关键词",
+      "imageKeyword": "英文图片关键词",
       "schedule": [
-        {
-          "time": "09:00",
-          "activity": "活动名称",
-          "location": "具体地点",
-          "lat": 纬度数字,
-          "lng": 经度数字,
-          "duration": "建议时长",
-          "description": "详细描述（60-100字）",
-          "tips": "实用小贴士",
-          "estimatedCost": "参考费用"
-        }
+        {"time":"09:00","activity":"活动","location":"地点","lat":纬度,"lng":经度,"duration":"时长","description":"描述（50字）","tips":"贴士","estimatedCost":"费用"}
       ],
       "meals": {
-        "breakfast": { "name": "推荐早餐", "description": "特色介绍", "pricePerPerson": "人均价格", "searchKeyword": "大众点评搜索词" },
-        "lunch": { "name": "推荐午餐餐厅", "cuisine": "菜系", "description": "招牌菜介绍", "pricePerPerson": "人均价格", "address": "大致位置", "searchKeyword": "大众点评搜索词" },
-        "dinner": { "name": "推荐晚餐餐厅", "cuisine": "菜系", "description": "招牌菜介绍", "pricePerPerson": "人均价格", "address": "大致位置", "searchKeyword": "大众点评搜索词" }
+        "breakfast": {"name":"餐厅","description":"介绍","pricePerPerson":"人均","searchKeyword":"搜索词"},
+        "lunch": {"name":"餐厅","cuisine":"菜系","description":"介绍","pricePerPerson":"人均","address":"位置","searchKeyword":"搜索词"},
+        "dinner": {"name":"餐厅","cuisine":"菜系","description":"介绍","pricePerPerson":"人均","address":"位置","searchKeyword":"搜索词"}
       },
-      "accommodation": { "name": "推荐住宿", "type": "住宿类型", "pricePerNight": "每晚价格", "address": "大致位置", "description": "住宿特色", "searchKeyword": "携程/美团搜索词" }
+      "accommodation": {"name":"住宿","type":"类型","pricePerNight":"价格","address":"位置","description":"特色","searchKeyword":"搜索词"}
     }
   ],
   "restaurants": [
-    { "name": "餐厅名称", "cuisine": "菜系", "priceRange": "人均消费", "specialty": "招牌菜", "location": "位置描述", "searchKeyword": "大众点评搜索关键词", "reason": "推荐理由", "openHours": "营业时间" }
+    {"name":"餐厅","cuisine":"菜系","priceRange":"人均","specialty":"招牌菜","location":"位置","searchKeyword":"搜索词","reason":"推荐原因","openHours":"营业时间"}
   ],
   "hotels": [
-    { "name": "住宿名称", "type": "类型", "pricePerNight": "每晚价格", "stars": "星级", "location": "位置描述", "features": ["特点1", "特点2"], "searchKeyword": "携程搜索关键词", "suitable": "适合人群" }
+    {"name":"住宿","type":"类型","pricePerNight":"价格","stars":"星级","location":"位置","features":["特点1","特点2"],"searchKeyword":"搜索词","suitable":"适合人群"}
   ],
   "transportation": {
-    "arrival": "抵达目的地的详细交通建议",
-    "local": "当地交通方式说明",
-    "tips": ["交通贴士1", "交通贴士2", "交通贴士3"]
+    "arrival": "到达方式",
+    "local": "本地交通",
+    "tips": ["贴士1","贴士2","贴士3"]
   },
   "shopping": [
-    { "name": "购物地点", "type": "购物类型", "specialty": "主要商品", "priceRange": "价格区间", "location": "位置", "tips": "购物建议" }
+    {"name":"购物地","type":"类型","specialty":"商品","priceRange":"价格","location":"位置","tips":"建议"}
   ],
   "budgetBreakdown": {
-    "accommodation": 住宿总费用数字,
-    "food": 餐饮总费用数字,
-    "attractions": 景点门票总费用数字,
-    "transportation": 交通总费用数字,
-    "shopping": 购物预算数字,
-    "misc": 其他费用数字
+    "accommodation": 住宿费数字,
+    "food": 餐饮费数字,
+    "attractions": 门票费数字,
+    "transportation": 交通费数字,
+    "shopping": 购物费数字,
+    "misc": 其他费数字
   },
   "travelTips": {
-    "essentials": ["必带物品1", "必带物品2", "必带物品3"],
-    "cultural": ["文化礼仪注意事项1", "注意事项2"],
-    "practical": ["实用建议1", "实用建议2", "实用建议3", "实用建议4"]
+    "essentials": ["必带1","必带2","必带3"],
+    "cultural": ["注意1","注意2"],
+    "practical": ["建议1","建议2","建议3"]
   },
-  "videoSearchKeyword": "B站视频搜索关键词"
+  "videoSearchKeyword": "B站搜索词"
 }`;
 
-    const apiResp = await callDeepSeek(apiKey, prompt);
+    const apiResp = await callSiliconFlow(apiKey, prompt);
 
     if (apiResp.error) {
-      throw new Error(apiResp.error.message || 'DeepSeek API 调用失败');
+      throw new Error(apiResp.error.message || '硅基流动 API 调用失败');
     }
 
-    const itinerary = JSON.parse(apiResp.choices[0].message.content);
+    if (!apiResp.choices || !apiResp.choices[0]) {
+      throw new Error('API 返回数据异常，请重试');
+    }
+
+    let content = apiResp.choices[0].message.content.trim();
+
+    // 清除可能存在的代码块标记
+    content = content.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/,'').trim();
+
+    let itinerary;
+    try {
+      itinerary = JSON.parse(content);
+    } catch {
+      const match = content.match(/\{[\s\S]*\}/);
+      if (match) {
+        itinerary = JSON.parse(match[0]);
+      } else {
+        throw new Error('AI返回格式异常，请重试');
+      }
+    }
 
     return {
       statusCode: 200,
@@ -195,7 +207,7 @@ ${lines.join('\n')}
     return {
       statusCode: 500,
       headers: CORS,
-      body: JSON.stringify({ error: error.message || '生成攻略失败，请稍后重试' })
+      body: JSON.stringify({ error: error.message || '生成失败，请稍后重试' })
     };
   }
 };
